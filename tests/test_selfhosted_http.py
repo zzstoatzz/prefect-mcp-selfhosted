@@ -11,8 +11,10 @@ def test_identity_required():
         build_app("")
 
 
-async def test_http_identity_and_pinned_target(test_flow):
-    app = build_app("operator@example.com", via_proxy=True)
+async def test_http_identity_and_pinned_target(test_flow, tmp_path):
+    (tmp_path / "history.json").write_text("[]")
+    (tmp_path / "STOPPED.json").write_text('{"reason": "review required"}')
+    app = build_app("operator@example.com", via_proxy=True, chaos_state=tmp_path)
 
     def factory(
         headers: dict[str, str] | None = None,
@@ -54,6 +56,12 @@ async def test_http_identity_and_pinned_target(test_flow):
         async with Client(transport) as client:
             tools = await client.list_tools()
             assert not any(tool.name.startswith("execution_plans_") for tool in tools)
+            status = await client.call_tool("get_chaos_status", {})
+            assert status.structured_content is not None
+            assert status.structured_content["status"] == "latched"
+            assert (
+                status.structured_content["stop_record"]["reason"] == "review required"
+            )
             result = await client.call_tool(
                 "get_flows", {"filter": {"id": {"any_": [str(test_flow)]}}}
             )

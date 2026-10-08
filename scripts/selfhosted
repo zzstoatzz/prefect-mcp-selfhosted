@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--http", action="store_true")
     parser.add_argument("--tailscale-login")
     parser.add_argument("--bind-address", default="127.0.0.1")
+    parser.add_argument("--chaos-state", type=Path)
     args = parser.parse_args()
     target = urlparse(args.api_url)
     credentials = dotenv_values(args.credentials_file, interpolate=False)
@@ -50,6 +51,8 @@ def main():
             raise SystemExit("HTTP mode requires an allowed Tailscale login")
         environment["PREFECT_MCP_TAILSCALE_LOGIN"] = args.tailscale_login
         environment["PREFECT_MCP_BIND_ADDRESS"] = args.bind_address
+        if args.chaos_state:
+            environment["PREFECT_MCP_CHAOS_STATE"] = str(args.chaos_state.resolve())
     root = str(Path(__file__).resolve().parents[1])
     os.chdir(root)
     os.execvpe(

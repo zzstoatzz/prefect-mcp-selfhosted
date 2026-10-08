@@ -78,3 +78,14 @@ build version, flow runs, logs, work pools, deployments, task runs, and events.
 A target override returned HTTP 403. The running service was observed at
 approximately 159 MiB with zero restarts. This demonstrates the deployed
 connection, not refresh of an already-open chat's cached tool inventory.
+
+The hosted launcher also accepts an operator-only `--chaos-state` directory.
+When configured, `get_chaos_status` exposes the lab's failure latch, unfinished
+invocation record, three recent results, and rolling 24-hour experiment budget.
+It has no tool arguments and cannot change the directory, clear a latch, or
+start a fault. The deployed unit selects `prefect-chaos-validation`, preserving
+the existing accounting. Its budget calculation matches runner policy v1:
+24 starts, a 3200-second start cutoff, and a 400-second reserve. A future runner
+policy change must update this inspector as well. An opening budget does not
+clear a recorded failure. File records do not prove live process or timer state,
+and these results describe the isolated lab rather than production health.
