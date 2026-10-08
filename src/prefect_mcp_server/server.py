@@ -93,8 +93,10 @@ async def get_identity(
     return await _prefect_client.get_identity(workspace_id=workspace_id)
 
 
-async def get_server_status(samples: int = 2) -> dict[str, object]:
-    """Sample health, DB readiness, compatibility and build versions of our API.
+async def get_server_status(
+    samples: Annotated[int, Field(ge=1, le=8)] = 2,
+) -> dict[str, object]:
+    """Sample health, DB readiness, compatibility and build versions of a self-hosted API.
 
     Uses only the configured self-hosted target. One to eight samples, each with
     four probes bounded to three seconds. Observed version skew is evidence of
@@ -558,7 +560,6 @@ async def review_rate_limits(
 CORE_TOOLS = (
     orientation,
     get_identity,
-    get_server_status,
     get_dashboard,
     get_deployments,
     get_flows,
@@ -638,6 +639,16 @@ def build_prefect_mcp_server(
 
     for tool in CORE_TOOLS:
         server.tool(annotations=tool_annotations(tool, read_only=True))(tool)
+
+    if (
+        determine_server_type() != ServerType.CLOUD
+        and not cloud_oauth.settings.enabled
+        and not include_cloud_oauth_tools
+        and include_cloud_tools is not True
+    ):
+        server.tool(annotations=tool_annotations(get_server_status, read_only=True))(
+            get_server_status
+        )
 
     should_include_cloud_tools = (
         include_cloud_tools
