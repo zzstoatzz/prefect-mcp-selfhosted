@@ -312,3 +312,19 @@ async def test_get_object_schema_tool(prefect_mcp_server: FastMCP) -> None:
         assert guidance["trigger"]["after"] == ["prefect.flow-run.Pending"]
         assert "prefect.flow-run.Running" in guidance["trigger"]["expect"]
         assert "prefect.flow-run.*" in guidance["note"]
+
+
+async def test_server_status_real_api(prefect_mcp_server: FastMCP) -> None:
+    async with Client(prefect_mcp_server) as client:
+        result = await client.call_tool("get_server_status", {"samples": 2})
+        data = result.structured_content
+        assert data["api_url"]
+        assert len(data["observations"]) == 2
+        for observation in data["observations"]:
+            assert observation["health"]["status"] == 200
+            assert observation["readiness"]["status"] == 200
+            assert observation["compatibility_version"]["status"] == 200
+            assert observation["api_version"]["status"] == 200
+        assert data["version_skew_observed"] is False
+        assert data["throughput_verified"] is False
+        assert data["replica_coverage"].startswith("unknown:")
