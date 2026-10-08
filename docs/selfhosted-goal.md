@@ -89,3 +89,10 @@ the existing accounting. Its budget calculation matches runner policy v1:
 policy change must update this inspector as well. An opening budget does not
 clear a recorded failure. File records do not prove live process or timer state,
 and these results describe the isolated lab rather than production health.
+
+Revision `dd9de16` was deployed and verified through the private HTTP endpoint:
+14 tools registered, two real `get_chaos_status` calls reported the same
+24-experiment/2403.84-second history, and the latest overlap failure remained
+latched. The next count-budget slot is 2026-10-09 04:25:47 America/Chicago.
+Two production readiness probes returned 200 on unchanged build `993424a`.
+All 198 tests and four snapshots passed, with Ruff and type checks clean.
