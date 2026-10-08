@@ -36,3 +36,24 @@ Completion requires:
 
 Home hosting via Tailscale remains a later migration option. Retiring the current
 VM also requires accounting for its other hosted services and ingress routes.
+
+## current connection
+
+Codex's `prefect-selfhosted` entry launches `scripts/selfhosted` over stdio. The
+launcher reads the existing infrastructure `.env` at process startup, verifies
+that the requested HTTPS API domain matches it, and passes credentials only in
+the child environment. It uses this checkout and `uv run --frozen`; updating the
+pushed branch and reconnecting the MCP starts the new revision. This is a local
+MCP process connected to the hosted API, not yet a hosted HTTP MCP deployment.
+
+The first additional operational tool, `get_server_status`, samples health,
+database readiness, `/admin/version` compatibility, and `/version` build identity.
+It reports per-probe latency and failures, observed version skew, and explicitly
+unknown replica coverage. Gateway sampling must not be treated as a replica
+inventory or proof that work completes. It accepts no target URL; it uses the
+configured connection.
+
+Verified on 2026-10-08 through a real stdio MCP client: three production samples
+returned readiness and build `993424a75aa8b2e46d3bff11dd6c81885ff9fb4d`, with
+compatibility `3.8.2`. The new tool also runs against an actual ephemeral Prefect
+API in the test suite. At this revision, all 186 tests, Ruff, and type checks pass.
