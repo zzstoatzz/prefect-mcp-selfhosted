@@ -93,21 +93,6 @@ async def get_identity(
     return await _prefect_client.get_identity(workspace_id=workspace_id)
 
 
-async def get_server_status(
-    samples: Annotated[int, Field(ge=1, le=8)] = 2,
-) -> dict[str, object]:
-    """Sample health, DB readiness, compatibility and build versions of a self-hosted API.
-
-    Uses only the configured self-hosted target. One to eight samples, each with
-    four probes bounded to three seconds. Observed version skew is evidence of
-    different responses; matching versions do not prove complete replica coverage.
-    Health and readiness do not establish workflow throughput.
-    """
-    from prefect_mcp_server._prefect_client.server_status import get_server_status
-
-    return await get_server_status(samples=samples)
-
-
 async def list_authorized_workspaces() -> dict[str, object]:
     """List Prefect Cloud workspaces selected during OAuth consent.
 
@@ -639,16 +624,6 @@ def build_prefect_mcp_server(
 
     for tool in CORE_TOOLS:
         server.tool(annotations=tool_annotations(tool, read_only=True))(tool)
-
-    if (
-        determine_server_type() != ServerType.CLOUD
-        and not cloud_oauth.settings.enabled
-        and not include_cloud_oauth_tools
-        and include_cloud_tools is not True
-    ):
-        server.tool(annotations=tool_annotations(get_server_status, read_only=True))(
-            get_server_status
-        )
 
     should_include_cloud_tools = (
         include_cloud_tools
