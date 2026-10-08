@@ -93,6 +93,19 @@ async def get_identity(
     return await _prefect_client.get_identity(workspace_id=workspace_id)
 
 
+async def get_server_status(samples: int = 2) -> dict[str, object]:
+    """Sample health, DB readiness, compatibility and build versions of our API.
+
+    Uses only the configured self-hosted target. One to eight samples, each with
+    four probes bounded to three seconds. Observed version skew is evidence of
+    different responses; matching versions do not prove complete replica coverage.
+    Health and readiness do not establish workflow throughput.
+    """
+    from prefect_mcp_server._prefect_client.server_status import get_server_status
+
+    return await get_server_status(samples=samples)
+
+
 async def list_authorized_workspaces() -> dict[str, object]:
     """List Prefect Cloud workspaces selected during OAuth consent.
 
@@ -545,6 +558,7 @@ async def review_rate_limits(
 CORE_TOOLS = (
     orientation,
     get_identity,
+    get_server_status,
     get_dashboard,
     get_deployments,
     get_flows,
