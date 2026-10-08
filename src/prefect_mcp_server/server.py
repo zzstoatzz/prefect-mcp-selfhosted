@@ -605,6 +605,7 @@ def build_prefect_mcp_server(
     include_docs_proxy: bool = True,
     include_cloud_tools: bool | None = None,
     include_cloud_oauth_tools: bool = False,
+    include_execution_plan_tools: bool = True,
 ) -> FastMCP:
     """Build a Prefect MCP server from shared tools and optional Cloud adapters."""
     server = FastMCP(name, auth=auth_provider)
@@ -655,7 +656,7 @@ def build_prefect_mcp_server(
         for tool in CLOUD_OAUTH_TOOLS:
             server.tool(annotations=tool_annotations(tool, read_only=True))(tool)
 
-    for tool in EXECUTION_PLAN_TOOLS:
+    for tool in EXECUTION_PLAN_TOOLS if include_execution_plan_tools else ():
         annotations = tool_annotations(
             tool,
             read_only=tool is not execution_plans.execution_plans_publish,

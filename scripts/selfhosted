@@ -15,14 +15,22 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--credentials-file", type=Path, required=True)
     parser.add_argument("--api-url", required=True)
+    parser.add_argument("--http", action="store_true")
+    parser.add_argument("--tailscale-login")
     args = parser.parse_args()
     target = urlparse(args.api_url)
     credentials = dotenv_values(args.credentials_file, interpolate=False)
-    if target.scheme != "https" or target.hostname != credentials.get("DOMAIN"):
+    worker_target = credentials.get("PREFECT_API_URL")
+    domain = credentials.get("DOMAIN")
+    if worker_target:
+        if worker_target != args.api_url:
+            raise SystemExit("MCP target must match the worker environment's API URL")
+        domain = urlparse(worker_target).hostname
+    if target.scheme != "https" or target.hostname != domain:
         raise SystemExit("MCP target must match the credentials file's HTTPS domain")
     if target.path.rstrip("/") != "/api" or target.username or target.password:
         raise SystemExit("MCP target must be an API URL without embedded credentials")
-    auth = credentials.get("AUTH_STRING")
+    auth = credentials.get("AUTH_STRING") or credentials.get("PREFECT_API_AUTH_STRING")
     if not auth or ":" not in auth:
         raise SystemExit("credentials file must supply AUTH_STRING")
     environment = {
@@ -36,11 +44,26 @@ def main():
         PREFECT_SERVER_ALLOW_EPHEMERAL_MODE="false",
         PREFECT_MCP_CLOUD_ENABLED="false",
     )
+    if args.http:
+        if not args.tailscale_login:
+            raise SystemExit("HTTP mode requires an allowed Tailscale login")
+        environment["PREFECT_MCP_TAILSCALE_LOGIN"] = args.tailscale_login
     root = str(Path(__file__).resolve().parents[1])
     os.chdir(root)
     os.execvpe(
         "uv",
-        ["uv", "run", "--frozen", "--project", root, "prefect-mcp-server"],
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "--project",
+            root,
+            *(
+                ["python", "-m", "prefect_mcp_server.selfhosted_http"]
+                if args.http
+                else ["prefect-mcp-server"]
+            ),
+        ],
         environment,
     )
 
