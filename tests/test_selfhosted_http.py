@@ -12,18 +12,20 @@ def test_identity_required():
 
 
 async def test_http_identity_and_pinned_target(test_flow):
-    app = build_app("operator@example.com")
+    app = build_app("operator@example.com", via_proxy=True)
 
     def factory(
         headers: dict[str, str] | None = None,
         timeout: httpx.Timeout | None = None,
         auth: httpx.Auth | None = None,
+        follow_redirects: bool = False,
     ) -> httpx.AsyncClient:
         return httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
             headers=headers,
             timeout=timeout,
             auth=auth,
+            follow_redirects=follow_redirects,
         )
 
     async with app.lifespan(app):
@@ -60,3 +62,18 @@ async def test_http_identity_and_pinned_target(test_flow):
             assert data["success"] is True
             assert data["count"] == 1
             assert data["flows"][0]["id"] == str(test_flow)
+
+
+async def test_direct_mode_ignores_forged_identity():
+    app = build_app("operator@example.com")
+    async with app.lifespan(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app)) as client:
+            response = await client.post(
+                "http://localhost/mcp",
+                headers={
+                    "tailscale-user-login": "operator@example.com",
+                    "x-forwarded-for": "100.96.216.23",
+                },
+                json={},
+            )
+            assert response.status_code == 403

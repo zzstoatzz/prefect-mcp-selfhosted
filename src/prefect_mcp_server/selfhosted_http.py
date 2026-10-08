@@ -1,3 +1,6 @@
+import asyncio
+import ipaddress
+import json
 import os
 from urllib.parse import urlparse
 
@@ -11,16 +14,51 @@ from prefect_mcp_server.server import build_prefect_mcp_server
 
 
 class TailscaleIdentity:
-    def __init__(self, app: ASGIApp, login: str):
+    def __init__(self, app: ASGIApp, login: str, via_proxy: bool):
         if not login:
             raise ValueError("an allowed Tailscale login is required")
         self.app = app
         self.login = login
+        self.via_proxy = via_proxy
+
+    async def peer_login(self, address: str) -> str | None:
+        if ipaddress.ip_address(address) not in ipaddress.ip_network("100.64.0.0/10"):
+            return None
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "tailscale",
+                "whois",
+                "--json",
+                address,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+        except OSError:
+            return None
+        try:
+            output, _ = await asyncio.wait_for(process.communicate(), 2)
+            if process.returncode != 0:
+                return None
+            return json.loads(output).get("UserProfile", {}).get("LoginName")
+        except (TimeoutError, ValueError):
+            return None
+        finally:
+            if process.returncode is None:
+                process.kill()
+                await process.wait()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
             headers = Headers(scope=scope)
-            if headers.get("tailscale-user-login") != self.login or any(
+            peer = scope.get("client")
+            login = (
+                headers.get("tailscale-user-login")
+                if self.via_proxy
+                else await self.peer_login(peer[0])
+                if peer
+                else None
+            )
+            if login != self.login or any(
                 key.startswith("x-prefect-") for key in headers
             ):
                 await PlainTextResponse("Forbidden", status_code=403)(
@@ -30,7 +68,7 @@ class TailscaleIdentity:
         await self.app(scope, receive, send)
 
 
-def build_app(login: str):
+def build_app(login: str, via_proxy: bool = False):
     if not login:
         raise ValueError("an allowed Tailscale login is required")
     server = build_prefect_mcp_server(
@@ -43,7 +81,8 @@ def build_app(login: str):
     return server.http_app(
         stateless_http=True,
         json_response=True,
-        middleware=[Middleware(TailscaleIdentity, login=login)],
+        allowed_hosts=[os.environ.get("PREFECT_MCP_BIND_ADDRESS", "127.0.0.1")],
+        middleware=[Middleware(TailscaleIdentity, login=login, via_proxy=via_proxy)],
     )
 
 
@@ -57,8 +96,15 @@ def main():
         or not os.environ.get("PREFECT_API_AUTH_STRING")
     ):
         raise SystemExit("Prefect credentials must be supplied in the environment")
-    app = build_app(os.environ.get("PREFECT_MCP_TAILSCALE_LOGIN", ""))
-    uvicorn.run(app, host="127.0.0.1", port=9011, proxy_headers=False, access_log=False)
+    bind = os.environ.get("PREFECT_MCP_BIND_ADDRESS", "127.0.0.1")
+    if bind != "127.0.0.1" and ipaddress.ip_address(bind) not in ipaddress.ip_network(
+        "100.64.0.0/10"
+    ):
+        raise SystemExit("HTTP must bind to loopback or the Tailscale IPv4 interface")
+    app = build_app(
+        os.environ.get("PREFECT_MCP_TAILSCALE_LOGIN", ""), via_proxy=bind == "127.0.0.1"
+    )
+    uvicorn.run(app, host=bind, port=9011, proxy_headers=False, access_log=False)
 
 
 if __name__ == "__main__":

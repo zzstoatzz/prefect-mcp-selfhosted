@@ -8,7 +8,7 @@ StartLimitBurst=3
 Type=exec
 WorkingDirectory=%h/.local/share/prefect-mcp-selfhosted
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=%h/.local/bin/uv run --script scripts/selfhosted --credentials-file %h/.config/prod-worker/env --api-url https://prefect-server.waow.tech/api --http --tailscale-login zzstoatzz@github
+ExecStart=%h/.local/bin/uv run --script scripts/selfhosted --credentials-file %h/.config/prod-worker/env --api-url https://prefect-server.waow.tech/api --http --tailscale-login zzstoatzz@github --bind-address 100.96.216.23
 Restart=on-failure
 RestartSec=5
 CPUQuota=50%
