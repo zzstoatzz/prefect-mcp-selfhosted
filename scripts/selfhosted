@@ -1,0 +1,49 @@
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["python-dotenv==1.1.1"]
+# ///
+import argparse
+import os
+from pathlib import Path
+from urllib.parse import urlparse
+
+from dotenv import dotenv_values
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--credentials-file", type=Path, required=True)
+    parser.add_argument("--api-url", required=True)
+    args = parser.parse_args()
+    target = urlparse(args.api_url)
+    credentials = dotenv_values(args.credentials_file, interpolate=False)
+    if target.scheme != "https" or target.hostname != credentials.get("DOMAIN"):
+        raise SystemExit("MCP target must match the credentials file's HTTPS domain")
+    if target.path.rstrip("/") != "/api" or target.username or target.password:
+        raise SystemExit("MCP target must be an API URL without embedded credentials")
+    auth = credentials.get("AUTH_STRING")
+    if not auth or ":" not in auth:
+        raise SystemExit("credentials file must supply AUTH_STRING")
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key in {"PATH", "HOME", "LANG", "TMPDIR", "UV_CACHE_DIR", "SSL_CERT_FILE"}
+    }
+    environment.update(
+        PREFECT_API_URL=args.api_url,
+        PREFECT_API_AUTH_STRING=auth,
+        PREFECT_SERVER_ALLOW_EPHEMERAL_MODE="false",
+        PREFECT_MCP_CLOUD_ENABLED="false",
+    )
+    root = str(Path(__file__).resolve().parents[1])
+    os.chdir(root)
+    os.execvpe(
+        "uv",
+        ["uv", "run", "--frozen", "--project", root, "prefect-mcp-server"],
+        environment,
+    )
+
+
+if __name__ == "__main__":
+    main()
