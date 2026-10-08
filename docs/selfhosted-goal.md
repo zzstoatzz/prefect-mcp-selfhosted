@@ -39,12 +39,26 @@ VM also requires accounting for its other hosted services and ingress routes.
 
 ## current connection
 
-Codex's `prefect-selfhosted` entry launches `scripts/selfhosted` over stdio. The
-launcher reads the existing infrastructure `.env` at process startup, verifies
-that the requested HTTPS API domain matches it, and passes credentials only in
-the child environment. It uses this checkout and `uv run --frozen`; updating the
-pushed branch and reconnecting the MCP starts the new revision. This is a local
-MCP process connected to the hosted API, not yet a hosted HTTP MCP deployment.
+Codex's `prefect-selfhosted` entry now uses Streamable HTTP at
+`http://100.96.216.23:9011/mcp`. This is a private tailnet endpoint on HeavyPad,
+not an Internet listener. Tailscale encrypts the network transport. The server
+binds only the tailnet IPv4 address and checks the socket peer's identity through
+`tailscale whois`; only `zzstoatzz@github` is accepted. Forwarded identity headers
+are ignored in this mode, and HTTP Prefect target/credential overrides are
+rejected. Existing Tailscale Serve and Funnel routes were not changed.
+
+The `prefect-mcp-selfhosted.service` user unit runs the fork from
+`~/.local/share/prefect-mcp-selfhosted`, with a half-CPU and 384 MiB ceiling.
+The launcher reads the worker's existing `~/.config/prod-worker/env`, verifies
+the exact HTTPS API URL, and passes only the selected API credentials into the
+server. No new secret is copied into Codex configuration. After the existing
+credential store updates that file, restarting this service reloads it.
+
+Update by pushing this branch, pulling the hosted checkout, running
+`uv sync --frozen --no-dev`, installing the committed unit if it changed, then
+restarting and verifying real MCP reads. The HTTP transport is stateless;
+execution-plan mutations and Cloud tools are not registered. The original local
+stdio launcher remains available as a fallback.
 
 The first additional operational tool, `get_server_status`, samples health,
 database readiness, `/admin/version` compatibility, and `/version` build identity.
@@ -56,4 +70,11 @@ configured connection.
 Verified on 2026-10-08 through a real stdio MCP client: three production samples
 returned readiness and build `993424a75aa8b2e46d3bff11dd6c81885ff9fb4d`, with
 compatibility `3.8.2`. The new tool also runs against an actual ephemeral Prefect
-API in the test suite. At this revision, all 186 tests, Ruff, and type checks pass.
+API in the test suite. At that revision, all 186 tests, Ruff, and type checks passed.
+
+Hosted revision `bbf52b5` passes all 189 tests, Ruff, and type checks. From the
+laptop, actual HTTP MCP calls verified 13 tools, production identity, readiness,
+build version, flow runs, logs, work pools, deployments, task runs, and events.
+A target override returned HTTP 403. The running service was observed at
+approximately 159 MiB with zero restarts. This demonstrates the deployed
+connection, not refresh of an already-open chat's cached tool inventory.
