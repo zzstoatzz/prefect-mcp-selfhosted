@@ -101,9 +101,8 @@ def inspect_chaos(state: Path, *, now: float | None = None) -> dict[str, Any]:
             "start_runtime_limit_seconds": 3200,
             "not_before": eligible,
             "policy": "unattended: 24 starts, 3200-second start cutoff, 400-second reserve",
-            "supervised_experiment_limit": 28,
-            "supervised_budget_available": len(recent) < 28
-            and sum(seconds for _, seconds in recent) < 3200,
+            "supervised_experiment_limit": None,
+            "supervised_budget_available": sum(seconds for _, seconds in recent) < 3200,
             "supervised_note": "Requires an explicit recorded reason; shares history and runtime ceiling. Failure latches still apply.",
         }
         stopped = state / "STOPPED.json"

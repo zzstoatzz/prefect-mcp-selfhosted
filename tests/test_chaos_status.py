@@ -51,12 +51,12 @@ def test_duration_budget_requires_enough_entries_to_expire(tmp_path):
     assert result["budget"]["supervised_budget_available"] is False
 
 
-def test_supervised_count_limit_shares_history(tmp_path):
+def test_supervised_admission_uses_shared_runtime(tmp_path):
     encoded = json.dumps([{"started": 100_000, "seconds": 10}] * 28)
     (tmp_path / "history.json").write_text(encoded)
     result = inspect_chaos(tmp_path, now=100_050)
-    assert result["budget"]["supervised_budget_available"] is False
-    assert result["budget"]["supervised_experiment_limit"] == 28
+    assert result["budget"]["supervised_budget_available"] is True
+    assert result["budget"]["supervised_experiment_limit"] is None
     assert (tmp_path / "history.json").read_text() == encoded
 
 
