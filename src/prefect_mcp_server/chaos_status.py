@@ -36,6 +36,8 @@ def summary(record: Any) -> dict[str, Any]:
             "failure",
             "cleanup_failure",
             "reason",
+            "supervised_reason",
+            "experiment_limit",
         )
         if key in record
     }
@@ -98,7 +100,11 @@ def inspect_chaos(state: Path, *, now: float | None = None) -> dict[str, Any]:
             "experiment_limit": 24,
             "start_runtime_limit_seconds": 3200,
             "not_before": eligible,
-            "policy": "runner v1: 24 starts, 3200-second start cutoff, 400-second reserve",
+            "policy": "unattended: 24 starts, 3200-second start cutoff, 400-second reserve",
+            "supervised_experiment_limit": 28,
+            "supervised_budget_available": len(recent) < 28
+            and sum(seconds for _, seconds in recent) < 3200,
+            "supervised_note": "Requires an explicit recorded reason; shares history and runtime ceiling. Failure latches still apply.",
         }
         stopped = state / "STOPPED.json"
         active = state / "active.json"

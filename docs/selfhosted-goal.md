@@ -96,3 +96,10 @@ Revision `dd9de16` was deployed and verified through the private HTTP endpoint:
 latched. The next count-budget slot is 2026-10-09 04:25:47 America/Chicago.
 Two production readiness probes returned 200 on unchanged build `993424a`.
 All 198 tests and four snapshots passed, with Ruff and type checks clean.
+
+Supervised acceptance now permits at most 28 total starts in the same rolling
+history when the runner receives an explicit recorded reason. The unattended
+limit remains 24; both retain the 3200-second start cutoff and all fault guards.
+The MCP reports unattended eligibility and supervised eligibility separately,
+and includes the recorded reason in experiment summaries. No history is reset.
+The updated inspector passes all 199 tests and four snapshots.

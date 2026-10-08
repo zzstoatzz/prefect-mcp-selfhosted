@@ -24,6 +24,7 @@ def test_latched_budget_and_recent_results(tmp_path):
     assert result["status"] == "latched"
     assert result["stop_record"]["failure"] == "event replay timeout"
     assert result["budget_available"] is False
+    assert result["budget"]["supervised_budget_available"] is True
     assert result["budget"]["not_before"] == 186_400
     assert result["budget"]["runtime_seconds_last_24h"] == 2400
     assert [item["seed"] for item in result["recent_results"]] == [4, 3, 2]
@@ -47,6 +48,16 @@ def test_duration_budget_requires_enough_entries_to_expire(tmp_path):
     result = inspect_chaos(tmp_path, now=100_050)
     assert result["budget"]["experiments_last_24h"] == 2
     assert result["budget"]["not_before"] == 186_410
+    assert result["budget"]["supervised_budget_available"] is False
+
+
+def test_supervised_count_limit_shares_history(tmp_path):
+    encoded = json.dumps([{"started": 100_000, "seconds": 10}] * 28)
+    (tmp_path / "history.json").write_text(encoded)
+    result = inspect_chaos(tmp_path, now=100_050)
+    assert result["budget"]["supervised_budget_available"] is False
+    assert result["budget"]["supervised_experiment_limit"] == 28
+    assert (tmp_path / "history.json").read_text() == encoded
 
 
 @pytest.mark.parametrize("content", ["{", "{}", '[{"started": 1, "seconds": -1}]'])
