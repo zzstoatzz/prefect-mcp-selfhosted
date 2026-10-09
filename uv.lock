@@ -3049,6 +3049,9 @@ dev = [
     { name = "syrupy" },
     { name = "ty" },
 ]
+selfhosted = [
+    { name = "python-dotenv" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -3075,6 +3078,7 @@ dev = [
     { name = "syrupy", specifier = ">=5.0.0" },
     { name = "ty", specifier = ">=0.0.1a19" },
 ]
+selfhosted = [{ name = "python-dotenv", specifier = ">=1.1.1" }]
 
 [[package]]
 name = "prometheus-client"

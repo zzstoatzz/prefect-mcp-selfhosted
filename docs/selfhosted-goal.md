@@ -55,7 +55,7 @@ server. No new secret is copied into Codex configuration. After the existing
 credential store updates that file, restarting this service reloads it.
 
 Update by pushing this branch, pulling the hosted checkout, running
-`uv sync --frozen --no-dev`, installing the committed unit if it changed, then
+`uv sync --frozen --no-dev --group selfhosted`, installing the committed unit if it changed, then
 restarting and verifying real MCP reads. The HTTP transport is stateless;
 execution-plan mutations and Cloud tools are not registered. The original local
 stdio launcher remains available as a fallback.
